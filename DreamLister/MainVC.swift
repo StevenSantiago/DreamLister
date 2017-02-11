@@ -22,6 +22,9 @@ class MainVC: UIViewController, UITableViewDelegate, UITableViewDataSource, NSFe
         tableView.delegate = self
         tableView.dataSource = self
         
+        //generateTestData()
+        attemptFetch()
+        
     }
     
     override func didReceiveMemoryWarning() {
@@ -30,23 +33,75 @@ class MainVC: UIViewController, UITableViewDelegate, UITableViewDataSource, NSFe
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        return UITableViewCell()
+        let cell = tableView.dequeueReusableCell(withIdentifier: "ItemCell", for: indexPath) as! ItemCell
+        configureCell(cell: cell, indexPath: indexPath as NSIndexPath)
+        return cell
+        }
+    
+    func configureCell(cell: ItemCell, indexPath: NSIndexPath) {
+        let item = controller.object(at: indexPath as IndexPath)
+        cell.configureCell(item: item)
+        
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if let objs = controller.fetchedObjects , objs.count > 0 {
+            let item = objs[indexPath.row]
+            performSegue(withIdentifier: "ItemDetailsVC", sender: item)
+        }
+    }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "ItemDetailsVC" {
+            if let destination = segue.destination as? ItemDetailsVC {
+                if let item = sender as? Item {
+                    destination.itemToEdit = item
+                }
+            }
+        }
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if let sections = controller.sections {
+            let sectionInfo = sections[section]
+            return sectionInfo.numberOfObjects
+        }
+        
         return 0
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
+        if let sections = controller.sections {
+            return sections.count
+        }
+        
         return 0
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 150
     }
     
     func attemptFetch() {
         let fetchRequest: NSFetchRequest<Item> = Item.fetchRequest()
         let dateSort = NSSortDescriptor(key: "created", ascending: false)// sort on time stamp
-        fetchRequest.sortDescriptors = [dateSort]
-        let controller = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: context, sectionNameKeyPath: nil, cacheName: nil)
+        let priceSort = NSSortDescriptor(key: "price", ascending: true)
+        let titleSort = NSSortDescriptor(key: "title", ascending: true)
         
+        switch segment.selectedSegmentIndex {
+        case 0:
+            fetchRequest.sortDescriptors = [dateSort]
+        case 1:
+            fetchRequest.sortDescriptors = [priceSort]
+        case 2:
+            fetchRequest.sortDescriptors = [titleSort]
+        default:
+            fetchRequest.sortDescriptors = [dateSort]
+        }
+        
+        let controller = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: context, sectionNameKeyPath: nil, cacheName: nil)
+        controller.delegate = self
+        self.controller = controller
         do {
             try controller.performFetch()
         } catch {
@@ -78,8 +133,9 @@ class MainVC: UIViewController, UITableViewDelegate, UITableViewDataSource, NSFe
             break
         case.update:
             if let indexPath = indexPath {
-                let cell = tableView(<#T##tableView: UITableView##UITableView#>, cellForRowAt: <#T##IndexPath#>) as! ItemCell
-                //update cell data
+                let cell = tableView.cellForRow(at: indexPath) as! ItemCell
+                configureCell(cell: cell, indexPath: indexPath as NSIndexPath)
+
             }
             break
         case.move:
@@ -93,6 +149,34 @@ class MainVC: UIViewController, UITableViewDelegate, UITableViewDataSource, NSFe
             
         }
     }
+    
+    func generateTestData() {
+        
+        let item = Item(context: context)
+        item.title = "MacBook Pro 15"
+        item.price = 1800
+        item.details = "Hope they release some new MacBook Pros and some amazing features!"
+        
+        let item2 = Item(context: context)
+        item2.title = "Tesla"
+        item2.price = 90000
+        item2.details = "An amazing tesla I will one day drive and be proud of owning. One day"
+
+        let item3 = Item(context: context)
+        item3.title = "MacBook Pro 16"
+        item3.price = 4000
+        item3.details = "Hope they release some new MacBook Pros and some amazing features!"
+        
+        ad.saveContext()
+
+    }
+    
+    @IBAction func segmentChange(_ sender: Any) {
+        
+        attemptFetch()
+        tableView.reloadData()
+    }
+    
     
     
 }
